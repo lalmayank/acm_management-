@@ -10,12 +10,15 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(".env", "../.env"),
+        env_file=(".env", "../.env", "backend/.env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
 
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/acm_shark_tank"
+    DATABASE_URL: str = os.environ.get(
+        "DATABASE_URL",
+        "postgresql://postgres:postgres@localhost:5432/acm_shark_tank",
+    )
     JWT_SECRET: str = "super_secret_acm_shark_tank_key_change_in_production_2026"
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
@@ -24,18 +27,23 @@ class Settings(BaseSettings):
     CORS_ORIGINS: Union[List[str], str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://localhost:8000",
+        "http://127.0.0.1:8000",
     ]
+    CORS_ORIGIN_REGEX: str = r"^https:\/\/.*\.app\.github\.dev$|^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$"
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod
     def assemble_cors_origins(cls, v: Union[str, List[str]]) -> List[str]:
-        if isinstance(v, str) and not v.startswith("["):
-            return [i.strip() for i in v.split(",") if i.strip()]
-        elif isinstance(v, str):
-            try:
-                return json.loads(v)
-            except Exception:
-                return [v]
+        if isinstance(v, str):
+            v = v.strip()
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    return json.loads(v)
+                except Exception:
+                    pass
+            origins = [i.strip() for i in v.split(",") if i.strip()]
+            return origins if origins else ["*"]
         return v
 
     @property

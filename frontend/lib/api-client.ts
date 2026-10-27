@@ -1,13 +1,39 @@
 // API Client for ACM Shark Tank Backend
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1";
+/**
+ * Dynamically resolves the API base URL from environment variables (.env / .env.local).
+ * Priority:
+ * 1. NEXT_PUBLIC_API_URL if configured in environment
+ * 2. In browser: use relative "/api/v1" (routed via Next.js rewrites in next.config.ts)
+ * 3. Server-side: use BACKEND_URL/NEXT_PUBLIC_API_URL or fallback to 127.0.0.1
+ */
+export function getApiBaseUrl(): string {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL.replace(/\/+$/, "");
+  }
+
+  if (typeof window !== "undefined") {
+    // Relative path leverages Next.js rewrites, ensuring seamless cookie sharing and zero CORS friction
+    return "/api/v1";
+  }
+
+  const backendUrl = process.env.BACKEND_URL || "http://127.0.0.1:8000";
+  return `${backendUrl.replace(/\/+$/, "")}/api/v1`;
+}
 
 export interface ApiOptions extends RequestInit {
   token?: string;
 }
 
 export async function apiRequest<T = any>(endpoint: string, options: ApiOptions = {}): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
+  const apiBase = getApiBaseUrl();
+  const cleanEndpoint = endpoint.startsWith("/") ? endpoint : `/${endpoint}`;
+
+  // Avoid duplicate /api/v1 prefixes if both base and endpoint have it
+  const url =
+    apiBase.endsWith("/api/v1") && cleanEndpoint.startsWith("/api/v1")
+      ? `${apiBase.slice(0, -7)}${cleanEndpoint}`
+      : `${apiBase}${cleanEndpoint}`;
 
   const headers = new Headers(options.headers || {});
   

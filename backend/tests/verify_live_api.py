@@ -1,7 +1,8 @@
+import os
 import requests
 import uuid
 
-BASE_URL = "http://127.0.0.1:8000"
+BASE_URL = os.environ.get("BACKEND_URL", "http://127.0.0.1:8000").rstrip("/")
 
 def test_full_validator_flow():
     print("=" * 60)

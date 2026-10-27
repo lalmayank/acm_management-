@@ -48,9 +48,10 @@ uvicorn app.main:app --reload --port 8000
 ### 3. Run Frontend (Next.js)
 ```bash
 cd frontend
-pnpm dev
+npm install
+npm run dev
 ```
-* Access the portal at: [http://localhost:3000](http://localhost:3000)
+* Access the portal locally at `http://localhost:3000` or via your GitHub Codespaces forwarded URL.
 
 ---
 

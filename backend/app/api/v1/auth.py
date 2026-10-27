@@ -1,11 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Response, status
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.models.user import User
 from app.models.participant import Participant
+from app.models.team import Team, TeamMember
 from app.schemas.auth import LoginRequest, TokenResponse, UserResponse
 from app.core.security import verify_password, create_access_token
 from app.api.deps import get_current_user
@@ -20,26 +21,69 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Authenticate user via Email OR Participant Registration Code.
+    Authenticate user via:
+    1. Direct Email or Participant Registration Code
+    2. Team Name or Team Code + Member's Individual Password
     Sets secure HTTP-only cookie and returns Bearer token with primary role.
     """
     identifier = request.email_or_registration_id.strip()
 
-    # Find user by email or registration code
+    # 1. Direct lookup by Email or Registration Code
     stmt = (
         select(User)
         .outerjoin(Participant, User.id == Participant.user_id)
-        .where((User.email == identifier) | (Participant.registration_code == identifier))
+        .where(
+            (func.lower(User.email) == identifier.lower())
+            | (func.lower(Participant.registration_code) == identifier.lower())
+        )
         .options(selectinload(User.roles), selectinload(User.participant))
     )
     res = await db.execute(stmt)
-    user = res.scalar_one_or_none()
+    candidate_user = res.scalar_one_or_none()
 
-    if not user or not verify_password(request.password, user.password_hash):
+    user = None
+    if candidate_user and verify_password(request.password, candidate_user.password_hash):
+        user = candidate_user
+    else:
+        # 2. Team lookup by Team Name or Team Code (case-insensitive)
+        # Login ID is Team Name / Code, and password matches the individual member's unique password
+        team_stmt = (
+            select(Team)
+            .where(
+                (func.lower(Team.name) == identifier.lower())
+                | (func.lower(Team.team_code) == identifier.lower())
+            )
+            .options(
+                selectinload(Team.members)
+                .selectinload(TeamMember.participant)
+                .selectinload(Participant.user)
+                .selectinload(User.roles)
+            )
+        )
+        team_res = await db.execute(team_stmt)
+        team = team_res.scalar_one_or_none()
+
+        if team:
+            for tm in team.members:
+                if tm.status == "ACTIVE" and tm.participant and tm.participant.user:
+                    cand = tm.participant.user
+                    if verify_password(request.password, cand.password_hash):
+                        user = cand
+                        break
+
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid credentials",
+            detail="Invalid credentials. Sign in with your Team Name, Email, or Registration Code, and your individual password.",
         )
+
+    # Ensure user roles and participant relation are loaded
+    refresh_stmt = (
+        select(User)
+        .where(User.id == user.id)
+        .options(selectinload(User.roles), selectinload(User.participant))
+    )
+    user = (await db.execute(refresh_stmt)).scalar_one()
 
     if not user.is_active:
         raise HTTPException(

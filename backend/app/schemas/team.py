@@ -7,6 +7,7 @@ class MemberInput(BaseModel):
     name: str
     email: str
     college: Optional[str] = None
+    password: Optional[str] = None
 
 
 class TeamMemberResponse(BaseModel):

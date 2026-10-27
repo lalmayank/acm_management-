@@ -77,7 +77,7 @@ export default function LoginPage() {
           <form className="space-y-4" onSubmit={handleSubmit}>
             <div>
               <label className="block text-[11px] font-medium text-neutral-400 uppercase tracking-wider mb-1.5">
-                Account ID / Email
+                Team Name, Email, or Reg Code
               </label>
               <div className="relative">
                 <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-neutral-500">
@@ -88,10 +88,13 @@ export default function LoginPage() {
                   required
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
-                  placeholder="name@email.com or REG-CODE"
+                  placeholder="Team Name (e.g. Apex AI) or Email"
                   className="block w-full pl-10 pr-3.5 py-2.5 bg-[#1c1c1e] border border-white/[0.08] rounded-xl text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-white/30 focus:bg-[#222225] transition-all"
                 />
               </div>
+              <p className="mt-1 text-[11px] text-neutral-500">
+                Participants sign in with their Team Name &amp; individual password
+              </p>
             </div>
 
             <div>

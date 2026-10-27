@@ -51,11 +51,14 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS Configuration
-origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else ["http://localhost:3000"]
+# Dynamic CORS Configuration from Settings (.env)
+origins = settings.CORS_ORIGINS if isinstance(settings.CORS_ORIGINS, list) else [str(settings.CORS_ORIGINS)]
+cors_origin_regex = getattr(settings, "CORS_ORIGIN_REGEX", None)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
+    allow_origin_regex=cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

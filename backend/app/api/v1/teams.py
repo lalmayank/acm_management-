@@ -170,16 +170,19 @@ async def create_team(data: TeamCreate, db: AsyncSession = Depends(get_db)):
             # Check if user already exists
             u_stmt = select(User).where(User.email == email)
             user = (await db.execute(u_stmt)).scalar_one_or_none()
+            user_pwd = m_in.password.strip() if m_in.password and m_in.password.strip() else "participant123"
             if not user:
                 user = User(
                     email=email,
                     name=name,
-                    password_hash=hash_password("participant123"),
+                    password_hash=hash_password(user_pwd),
                     is_active=True,
                     roles=[part_role],
                 )
                 db.add(user)
                 await db.flush()
+            elif m_in.password and m_in.password.strip():
+                user.password_hash = hash_password(user_pwd)
 
             # Check or create participant
             p_stmt = select(Participant).where(Participant.user_id == user.id)
@@ -257,12 +260,21 @@ async def import_teams_csv(
         m_name = row.get("member_name") or row.get("name")
         m_email = (row.get("member_email") or row.get("email") or "").lower()
         m_phone = row.get("member_phone") or row.get("phone") or None
+        m_password = (
+            row.get("password")
+            or row.get("pass")
+            or row.get("member_password")
+            or row.get("login_pass")
+            or row.get("user_password")
+            or ""
+        )
 
         if m_name and m_email:
             teams_dict[t_name]["members"].append({
                 "name": m_name,
                 "email": m_email,
                 "phone": m_phone,
+                "password": m_password.strip(),
                 "college": row.get("college") or teams_dict[t_name]["college"],
             })
 
@@ -296,6 +308,7 @@ async def import_teams_csv(
             email = m["email"]
             name = m["name"]
             college = m["college"] or t_data["college"]
+            member_pwd = m.get("password") or "participant123"
 
             reg_code = f"{team.team_code}-M{idx}"
 
@@ -306,12 +319,16 @@ async def import_teams_csv(
                 user = User(
                     email=email,
                     name=name,
-                    password_hash=hash_password("participant123"),
+                    password_hash=hash_password(member_pwd),
                     is_active=True,
                     roles=[part_role],
                 )
                 db.add(user)
                 await db.flush()
+            else:
+                # Update password if explicitly provided in CSV
+                if m.get("password"):
+                    user.password_hash = hash_password(member_pwd)
 
             # Check Participant
             p_res = await db.execute(select(Participant).where(Participant.user_id == user.id))

@@ -15,8 +15,8 @@ export default function AdminTeamsPage() {
   // Manual creation state
   const [teamName, setTeamName] = useState("");
   const [college, setCollege] = useState("");
-  const [members, setMembers] = useState<{ name: string; email: string }[]>([
-    { name: "", email: "" },
+  const [members, setMembers] = useState<{ name: string; email: string; password?: string }[]>([
+    { name: "", email: "", password: "" },
   ]);
   const [creating, setCreating] = useState(false);
 
@@ -41,10 +41,10 @@ export default function AdminTeamsPage() {
   }, []);
 
   const handleAddMemberRow = () => {
-    setMembers((prev) => [...prev, { name: "", email: "" }]);
+    setMembers((prev) => [...prev, { name: "", email: "", password: "" }]);
   };
 
-  const handleMemberChange = (index: number, field: "name" | "email", value: string) => {
+  const handleMemberChange = (index: number, field: "name" | "email" | "password", value: string) => {
     setMembers((prev) => {
       const updated = [...prev];
       updated[index][field] = value;
@@ -69,6 +69,7 @@ export default function AdminTeamsPage() {
           name: m.name.trim(),
           email: m.email.trim(),
           college: college.trim() || undefined,
+          password: m.password?.trim() || undefined,
         }));
 
       await apiRequest("/teams/", {
@@ -83,7 +84,7 @@ export default function AdminTeamsPage() {
       setShowAddModal(false);
       setTeamName("");
       setCollege("");
-      setMembers([{ name: "", email: "" }]);
+      setMembers([{ name: "", email: "", password: "" }]);
       loadTeams();
     } catch (err: any) {
       alert(`Error creating team: ${err.message}`);
@@ -309,7 +310,7 @@ export default function AdminTeamsPage() {
                           </button>
                         )}
                       </div>
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <input
                           type="text"
                           required
@@ -324,6 +325,13 @@ export default function AdminTeamsPage() {
                           value={m.email}
                           onChange={(e) => handleMemberChange(idx, "email", e.target.value)}
                           placeholder="Email Address"
+                          className="px-3 py-2 bg-[#1c1c1e] border border-white/[0.08] rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white/30"
+                        />
+                        <input
+                          type="text"
+                          value={m.password || ""}
+                          onChange={(e) => handleMemberChange(idx, "password", e.target.value)}
+                          placeholder="Password (default: participant123)"
                           className="px-3 py-2 bg-[#1c1c1e] border border-white/[0.08] rounded-xl text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-white/30"
                         />
                       </div>
@@ -364,14 +372,22 @@ export default function AdminTeamsPage() {
               </p>
             </div>
 
-            <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl text-[11px] text-neutral-400 space-y-1">
+            <div className="p-3 bg-white/[0.02] border border-white/[0.06] rounded-xl text-[11px] text-neutral-400 space-y-1.5">
               <span className="font-medium text-neutral-300">Expected CSV Headers:</span>
               <pre className="font-mono text-[10px] text-neutral-200 bg-black/40 p-2 rounded border border-white/[0.06] overflow-x-auto">
-                team_name,college,member_name,member_email,phone
+team_name,college,member_name,member_email,password,phone
               </pre>
-              <p className="text-[10px] text-neutral-500">
-                Multiple rows with the same team name are automatically grouped into one team.
-              </p>
+              <div className="text-[11px] text-neutral-400 space-y-1 pt-1">
+                <p>
+                  • <strong className="text-white">Login ID:</strong> Team Name (e.g. <code className="text-neutral-300">Apex AI</code>).
+                </p>
+                <p>
+                  • <strong className="text-white">Password:</strong> Each member uses their own distinct password from the CSV to log into their individual account.
+                </p>
+                <p className="text-[10px] text-neutral-500">
+                  Multiple rows with the same team name are automatically grouped into that team.
+                </p>
+              </div>
             </div>
 
             <form onSubmit={handleCsvImport} className="space-y-4">
